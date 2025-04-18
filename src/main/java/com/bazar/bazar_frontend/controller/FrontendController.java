@@ -1,7 +1,6 @@
 package com.bazar.bazar_frontend.controller;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -25,7 +25,7 @@ public class FrontendController {
 	RestTemplate restTemplate;
 	
 	@GetMapping("/search/{topic}")
-	ResponseEntity<List<BookSearchDto>> search(@PathVariable String topic) {
+	ResponseEntity<?> search(@PathVariable String topic) {
 		
 		List<Book> queriedBooks;
 		try {
@@ -35,7 +35,7 @@ public class FrontendController {
 		} catch (RestClientException ex) {
 			ex.printStackTrace();
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body(Collections.emptyList());
+					.body("Catalog service is not available");
 		}
 		
 		List<BookSearchDto> booksForResponse = queriedBooks.stream()
@@ -68,5 +68,18 @@ public class FrontendController {
 		return ResponseEntity.ok(bookForResponse);
 	}
 	
-	
+	@PostMapping("/purchase/{id}")
+	public ResponseEntity<?> purchase(@PathVariable int id) {
+		
+		String responseMessage;
+		try {
+			responseMessage = restTemplate.postForObject("http://localhost:8082/order/purchase/id/" + id,
+					null, String.class);
+		} catch (RestClientException ex) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Order serivce is not available");
+		}
+		
+		return ResponseEntity.ok(responseMessage);
+	}
 }
