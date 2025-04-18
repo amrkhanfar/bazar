@@ -24,11 +24,23 @@ public class GlobalExceptionHandler {
 		private int status;
 		private String message;
 		private long timestamp;
+		@SuppressWarnings("unused")
+		public int getStatus() {
+			return status;
+		}
 		public void setStatus(int status) {
 			this.status = status;
 		}
+		@SuppressWarnings("unused")
+		public String getMessage() {
+			return message;
+		}
 		public void setMessage(String message) {
 			this.message = message;
+		}
+		@SuppressWarnings("unused")
+		public long getTimestamp() {
+			return timestamp;
 		}
 		public void setTimestamp(long timestamp) {
 			this.timestamp = timestamp;

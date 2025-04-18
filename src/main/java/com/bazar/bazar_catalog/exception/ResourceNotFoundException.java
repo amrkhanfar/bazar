@@ -1,5 +1,6 @@
 package com.bazar.bazar_catalog.exception;
 
+@SuppressWarnings("serial")
 public class ResourceNotFoundException extends RuntimeException {
 	
 	public ResourceNotFoundException() {
