@@ -2,7 +2,6 @@ package com.bazar.bazar_order.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,11 +57,30 @@ public class OrderController {
 					.body("Failed to update the stock");
 		}
 		
-		Order order = Order.builder()
-				.bookId(book.getId())
-				.build();
+		try {
+			Order order = Order.builder()
+					.bookId(book.getId())
+					.build();
+			orderRepo.save(order);
+		} catch (Exception ex) {
+			
+			/*
+			 * Applying atomicity through saga pattern
+			 * So if saving the order fails it sends a compensating transaction
+			 * to restore the stock back it's original value
+			 */
+			
+			BookUpdateRequest updateRequest = BookUpdateRequest.builder()
+					.id(id)
+					.quantity(book.getQuantity()) //Returning the previous quantity value 
+					.build();
+			
+			restTemplate.put("http://localhost:8081/catalog/query/update",
+					updateRequest);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Order failder");
+		}
 		
-		orderRepo.save(order);
 		return ResponseEntity.status(HttpStatus.OK)
 				.body("Purchased: " + book.getName());
 		
