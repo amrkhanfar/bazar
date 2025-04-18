@@ -1,5 +1,10 @@
 package com.bazar.bazar_frontend.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class Book {
 	
 	private int id;
