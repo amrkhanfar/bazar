@@ -3,6 +3,8 @@ package com.bazar.bazar_catalog.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.bazar.bazar_catalog.exception.ResourceNotFoundException;
 import com.bazar.bazar_catalog.model.Book;
@@ -30,6 +32,7 @@ public class CatalogController {
 		return book;
 	}
 	
+	
 	@PutMapping("/update")
 	public Book updateBook(@RequestBody BookUpdateRequest bookUpdateRequest) {
 		Book book = bookRepo.findById(bookUpdateRequest.getId())
@@ -44,5 +47,17 @@ public class CatalogController {
 		}
 		
 		return bookRepo.save(book);
+	}
+	
+	@PostMapping("/add")
+	public ResponseEntity<String> addBook(@RequestBody Book book) {
+		Book savedBook;
+		try {
+			savedBook = bookRepo.save(book);
+		} catch (Exception ex) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to save");
+		}
+		
+		return ResponseEntity.status(HttpStatus.OK).body(savedBook.getName() + " Saved successfuly. ID: " + savedBook.getId() );
 	}
 }
