@@ -16,5 +16,4 @@ public class BazarOrderApplication {
 	public RestTemplate restTemplate() {
 		return new RestTemplate();
 	}
-
 }
