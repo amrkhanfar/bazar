@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import com.bazar.bazar_frontend.Dto.BookInfoDto;
 import com.bazar.bazar_frontend.Dto.BookSearchDto;
 import com.bazar.bazar_frontend.model.Book;
 
@@ -46,4 +47,26 @@ public class FrontendController {
 		
 		return ResponseEntity.ok(booksForResponse);
 	}
+	
+	@GetMapping("/info/{id}")
+	public ResponseEntity<?> info(@PathVariable int id) {
+		
+		Book queriedBook;
+		try {
+			queriedBook = restTemplate
+			.getForObject("http://localhost:8081/catalog/query/id/" + id, Book.class);
+		} catch (RestClientException ex) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No item found with id: " + id);
+		}
+		
+		BookInfoDto bookForResponse = BookInfoDto.builder()
+				.title(queriedBook.getName())
+				.quantity(queriedBook.getQuantity())
+				.price(queriedBook.getPrice())
+				.build();
+		
+		return ResponseEntity.ok(bookForResponse);
+	}
+	
+	
 }
