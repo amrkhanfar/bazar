@@ -3,12 +3,7 @@ package com.bazar.bazar_catalog.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import com.bazar.bazar_catalog.exception.ResourceNotFoundException;
 import com.bazar.bazar_catalog.model.Book;
 import com.bazar.bazar_catalog.model.BookUpdateRequest;
@@ -21,14 +16,14 @@ public class CatalogController {
 	@Autowired
 	private BookRepo bookRepo;
 	
-	@RequestMapping("/query/topic/{topic}")
+	@GetMapping("/query/topic/{topic}")
 	public List<Book> queryByTopic(@PathVariable String topic) {
 		List<Book> books = bookRepo.findByTopic(topic);
 		return books;
 
 	}
 	
-	@RequestMapping("/query/id/{id}")
+	@GetMapping("/query/id/{id}")
 	public Book queryById(@PathVariable int id) {
 		Book book = bookRepo.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
