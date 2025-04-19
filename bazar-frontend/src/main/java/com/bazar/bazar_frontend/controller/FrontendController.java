@@ -39,7 +39,7 @@ public class FrontendController {
 		}
 		
 		List<BookSearchDto> booksForResponse = queriedBooks.stream()
-			    .map(book -> BookSearchDto.builder()
+			    .map(book -> BookSearchDto.builder() //line 42
 			            .id(book.getId())
 			            .title(book.getName())
 			            .build())
