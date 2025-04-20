@@ -16,7 +16,7 @@ import com.bazar.bazar_catalog.repository.BookRepo;
 public class CatalogController {
 	
 	@Autowired
-	private BookRepo bookRepo;
+	private BookRepo bookRepo; 
 	
 	@GetMapping("/query/topic/{topic}")
 	public List<Book> queryByTopic(@PathVariable String topic) {
