@@ -85,6 +85,9 @@ public class FrontendController {
 		try {
 			responseMessage = restTemplate.postForObject(orderServiceUrl + "/order/purchase/id/" + id,
 					null, String.class);
+		} catch (HttpClientErrorException.NotFound ex) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body("Book with id: " + id + " is not found");
 		} catch (RestClientException ex) {
 			return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
 					.body("Order serivce is not available");
