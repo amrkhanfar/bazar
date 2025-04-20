@@ -1,6 +1,7 @@
 package com.bazar.bazar_order.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,12 +27,15 @@ public class OrderController {
 	@Autowired
 	private RestTemplate restTemplate;
 	
+	@Value("${catalog.service.url}")
+	private String catalogServiceUrl;
+	
 	@PostMapping("/purchase/id/{id}")
 	public ResponseEntity<String> purchase(@PathVariable Integer id) {
 		Book book;
 		
 		try {
-			book = restTemplate.getForObject("http://localhost:8081/catalog/query/id/" + id,
+			book = restTemplate.getForObject(catalogServiceUrl + "/catalog/query/id/" + id,
 						Book.class);
 		} catch (HttpClientErrorException.NotFound ex) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -50,7 +54,7 @@ public class OrderController {
 				.quantity(book.getQuantity() - 1)
 				.build();
 		try {
-			restTemplate.put("http://localhost:8081/catalog/update",
+			restTemplate.put(catalogServiceUrl + "/catalog/update",
 					bookUpdateRequest);
 		} catch (RestClientException ex) {
 			return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -75,7 +79,7 @@ public class OrderController {
 					.quantity(book.getQuantity()) //Returning the previous quantity value 
 					.build();
 			
-			restTemplate.put("http://localhost:8081/catalog/update",
+			restTemplate.put(catalogServiceUrl + "/catalog/update",
 					updateRequest);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body("Order failed");
