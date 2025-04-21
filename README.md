@@ -1,7 +1,9 @@
-# Bazar - A Multi-tier Online Book Store
-Bazar is a microservice-based online book store system that consists of three main services:
-1. Catalog Service: for mangaing book inventory
-2. Order Service: mangaes purchase transactions
-3. Frontend Service: provides API endpoints fot consumer
+# Repository Note
 
-## Features
+Initially, each service was developed in a seperate repository.
+During the dockerizing stage I realized I should have put them in a signle repository
+
+The original repositories with commit history are still available at:
+- [Frontend Service](https://github.com/amrkhanfar/bazar-frontend)
+- [Catalog Service](https://github.com/amrkhanfar/bazar-catalog)
+- [Order Service](https://github.com/amrkhanfar/bazar-order)
