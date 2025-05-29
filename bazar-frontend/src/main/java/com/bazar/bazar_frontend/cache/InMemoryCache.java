@@ -5,10 +5,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Thread-safe LRU cache with TTL (default 5 mins)
  * Only book reads are cached and never writes
  */
+@Component
 public class InMemoryCache {
 
     private static final long DEFAULT_TTL_MS = 5 * 60 * 1000;     // 5 mins
