@@ -30,6 +30,9 @@ public class OrderController {
 	@Value("${catalog.service.url}")
 	private String catalogServiceUrl;
 	
+	@Value("${frontend.cache.url}")
+	private String frontendCacheUrl;
+	
 	@PostMapping("/purchase/id/{id}")
 	public ResponseEntity<String> purchase(@PathVariable Integer id) {
 		Book book;
@@ -81,12 +84,25 @@ public class OrderController {
 			
 			restTemplate.put(catalogServiceUrl + "/catalog/update",
 					updateRequest);
+			
+			invalidateCache(id);
+			
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body("Order failed");
 		}
 		
+		
+		
 		return ResponseEntity.status(HttpStatus.OK)
 				.body("Purchased: " + book.getName());
 		
+	}
+	
+	private void invalidateCache(int bookId) {
+		try {
+			restTemplate.delete(frontendCacheUrl + "/cache/invalidate/" + bookId);
+		} catch (RestClientException ignore) {
+			
+		}
 	}
 }

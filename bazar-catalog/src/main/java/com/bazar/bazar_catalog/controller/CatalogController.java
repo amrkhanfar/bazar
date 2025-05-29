@@ -1,11 +1,16 @@
 package com.bazar.bazar_catalog.controller;
 
+import java.lang.System.Logger;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
 import com.bazar.bazar_catalog.exception.ResourceNotFoundException;
 import com.bazar.bazar_catalog.model.Book;
 import com.bazar.bazar_catalog.model.BookUpdateRequest;
@@ -17,6 +22,12 @@ public class CatalogController {
 	
 	@Autowired
 	private BookRepo bookRepo; 
+	
+	@Autowired
+	private RestTemplate rest;
+	
+	@Value("${frontend.cache.url}")
+	private String frontendCacheUrl;
 	
 	@GetMapping("/query/topic/{topic}")
 	public List<Book> queryByTopic(@PathVariable String topic) {
@@ -38,6 +49,8 @@ public class CatalogController {
 		Book book = bookRepo.findById(bookUpdateRequest.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + bookUpdateRequest.getId()));
 		
+		invalidateCache(bookUpdateRequest.getId());
+		
 		if (bookUpdateRequest.getPrice() != null) {
 			book.setPrice(bookUpdateRequest.getPrice());
 		}
@@ -58,6 +71,16 @@ public class CatalogController {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to save");
 		}
 		
+		invalidateCache(savedBook.getId());
+		
 		return ResponseEntity.status(HttpStatus.OK).body(savedBook.getName() + " Saved successfuly. ID: " + savedBook.getId() );
+	}
+	
+	private void invalidateCache(int bookId) {
+		try {
+			rest.delete(frontendCacheUrl + "/cache/invalidate/" + bookId);
+		} catch (RestClientException ex) {
+			
+		}
 	}
 }
