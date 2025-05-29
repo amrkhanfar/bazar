@@ -18,6 +18,8 @@ import org.springframework.web.client.RestTemplate;
 
 import com.bazar.bazar_frontend.Dto.BookInfoDto;
 import com.bazar.bazar_frontend.Dto.BookSearchDto;
+import com.bazar.bazar_frontend.cache.InMemoryCache;
+import com.bazar.bazar_frontend.load_balancer.RoundRobinLoadBalancer;
 import com.bazar.bazar_frontend.model.Book;
 
 @RestController
@@ -32,67 +34,80 @@ public class FrontendController {
 	@Value("${order.service.url}")
 	private String orderServiceUrl;
 	
-	@GetMapping("/search/{topic}")
-	ResponseEntity<?> search(@PathVariable String topic) {
-		
-		List<Book> queriedBooks;
-		try {
-			ResponseEntity<Book[]> response = restTemplate
-					.getForEntity(catalogServiceUrl + "/catalog/query/topic/" + topic, Book[].class);
-			queriedBooks = Arrays.asList(response.getBody());
-		} catch (RestClientException ex) {
-			ex.printStackTrace();
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Catalog service is not available");
-		}
-		
-		List<BookSearchDto> booksForResponse = queriedBooks.stream()
-			    .map(book -> BookSearchDto.builder() //line 42
-			            .id(book.getId())
-			            .title(book.getName())
-			            .build())
-			    .collect(Collectors.toList());
-		
-		return ResponseEntity.ok(booksForResponse);
-	}
+    @Autowired
+    InMemoryCache cache;
+    
+    @Autowired
+    RoundRobinLoadBalancer lb;
 	
-	@GetMapping("/info/{id}")
-	public ResponseEntity<?> info(@PathVariable int id) {
-		
-		Book queriedBook;
-		try {
-			queriedBook = restTemplate
-			.getForObject(catalogServiceUrl + "/catalog/query/id/" + id, Book.class);
-		} catch (HttpClientErrorException.NotFound ex) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No item found with id: \" + id");
-		} catch (RestClientException ex) {
-			return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Catalog service is not available");
-		} 
-		
-		BookInfoDto bookForResponse = BookInfoDto.builder()
-				.title(queriedBook.getName())
-				.quantity(queriedBook.getQuantity())
-				.price(queriedBook.getPrice())
-				.build();
-		
-		return ResponseEntity.ok(bookForResponse);
-	}
-	
-	@PostMapping("/purchase/{id}")
-	public ResponseEntity<?> purchase(@PathVariable int id) {
-		
-		String responseMessage;
-		try {
-			responseMessage = restTemplate.postForObject(orderServiceUrl + "/order/purchase/id/" + id,
-					null, String.class);
-		} catch (HttpClientErrorException.NotFound ex) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND)
-					.body("Book with id: " + id + " is not found");
-		} catch (RestClientException ex) {
-			return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-					.body("Order serivce is not available"); 
-		}
-		
-		return ResponseEntity.ok(responseMessage);
-	}
+    // ----------- SEARCH BY TOPIC ---------------
+    @GetMapping("/search/{topic}")
+    public ResponseEntity<?> search(@PathVariable String topic) {
+
+        /* cache key is *only* the topic string */
+        return cache.get("topic:" + topic, List.class)
+               .<ResponseEntity<?>>map(ResponseEntity::ok)
+               .orElseGet(() -> {
+
+           String url = lb.nextCatalog() + "/catalog/query/topic/" + topic;
+           ResponseEntity<Book[]> resp;
+           try { resp = restTemplate.getForEntity(url, Book[].class); }
+           catch (RestClientException ex) {
+               return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                       .body("Catalog replicas unreachable");
+           }
+
+           List<BookSearchDto> out = Arrays.stream(resp.getBody())
+               .map(b -> BookSearchDto.builder().id(b.getId()).title(b.getName()).build())
+               .collect(Collectors.toList());
+
+           cache.put("topic:" + topic, out);
+           return ResponseEntity.ok(out);
+        });
+    }
+
+    // ----------- INFO BY ID ---------------
+    @GetMapping("/info/{id}")
+    public ResponseEntity<?> info(@PathVariable int id) {
+
+        return cache.get("book:" + id, BookInfoDto.class)
+               .<ResponseEntity<?>>map(ResponseEntity::ok)
+               .orElseGet(() -> {
+
+           String url = lb.nextCatalog() + "/catalog/query/id/" + id;
+           Book b;
+           try { b = restTemplate.getForObject(url, Book.class); }
+           catch (HttpClientErrorException.NotFound ex) {
+               return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No book with id " + id);
+           } catch (RestClientException ex) {
+               return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                       .body("Catalog replicas unreachable");
+           }
+
+           BookInfoDto dto = BookInfoDto.builder()
+                                .title(b.getName())
+                                .price(b.getPrice())
+                                .quantity(b.getQuantity())
+                                .build();
+           cache.put("book:" + id, dto);
+           return ResponseEntity.ok(dto);
+        });
+    }
+
+    // -------------- PURCHASE ----------------
+    @PostMapping("/purchase/{id}")
+    public ResponseEntity<?> purchase(@PathVariable int id) {
+
+        String url = lb.nextOrder() + "/order/purchase/id/" + id;
+        String reply;
+        try { reply = restTemplate.postForObject(url, null, String.class); }
+        catch (HttpClientErrorException.NotFound ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No book with id " + id);
+        } catch (RestClientException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body("Order service unreachable");
+        }
+
+        return ResponseEntity.ok(reply);
+    }
 }
