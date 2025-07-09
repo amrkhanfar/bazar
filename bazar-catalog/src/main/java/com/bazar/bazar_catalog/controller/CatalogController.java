@@ -26,7 +26,7 @@ public class CatalogController {
 	@Autowired
 	private RestTemplate rest;
 	
-	@Value("${frontend.cache.url}")
+	@Value("${FRONTEND_CACHE_URL:http://localhost:8080}")
 	private String frontendCacheUrl;
 	
 	@GetMapping("/query/topic/{topic}")
@@ -49,8 +49,6 @@ public class CatalogController {
 		Book book = bookRepo.findById(bookUpdateRequest.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + bookUpdateRequest.getId()));
 		
-		invalidateCache(bookUpdateRequest.getId());
-		
 		if (bookUpdateRequest.getPrice() != null) {
 			book.setPrice(bookUpdateRequest.getPrice());
 		}
@@ -59,7 +57,9 @@ public class CatalogController {
 			book.setQuantity(bookUpdateRequest.getQuantity());
 		}
 		
-		return bookRepo.save(book);
+		Book updatedBook = bookRepo.save(book);
+		invalidateCache(updatedBook.getId());
+		return updatedBook;
 	}
 	
 	@PostMapping("/add")

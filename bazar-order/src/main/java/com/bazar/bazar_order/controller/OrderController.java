@@ -27,12 +27,14 @@ public class OrderController {
 	@Autowired
 	private RestTemplate restTemplate;
 	
-	@Value("${catalog.service.url}")
+	@Value("${CATALOG_SERVICE_URL:http://localhost:8081}")
 	private String catalogServiceUrl;
 	
-	@Value("${frontend.cache.url}")
+	@Value("${FRONTEND_CACHE_URL:http://localhost:8080}")
 	private String frontendCacheUrl;
-	
+
+	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OrderController.class);
+
 	@PostMapping("/purchase/id/{id}")
 	public ResponseEntity<String> purchase(@PathVariable Integer id) {
 		Book book;
@@ -91,7 +93,9 @@ public class OrderController {
 					.body("Order failed");
 		}
 		
-		
+		// Invalidate cache after successful purchase
+		invalidateCache(id);
+		logger.info("after invalidateCache id: {}", id);
 		
 		return ResponseEntity.status(HttpStatus.OK)
 				.body("Purchased: " + book.getName());
@@ -101,6 +105,7 @@ public class OrderController {
 	private void invalidateCache(int bookId) {
 		try {
 			restTemplate.delete(frontendCacheUrl + "/cache/invalidate/" + bookId);
+			logger.info("Cache invalidated for book id: {}", bookId);
 		} catch (RestClientException ignore) {
 			
 		}

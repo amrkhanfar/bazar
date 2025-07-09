@@ -25,6 +25,7 @@ services:
       - order-data:/data
     environment:
       - CATALOG_SERVICE_URL=http://bazar-catalog-service:8081
+      - FRONTEND_CACHE_URL=http://bazar-frontend-service:8080
     depends_on:
       - bazar-catalog-service
 volumes:

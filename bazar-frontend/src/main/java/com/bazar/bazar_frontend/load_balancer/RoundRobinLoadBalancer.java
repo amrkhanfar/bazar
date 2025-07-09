@@ -1,5 +1,6 @@
 package com.bazar.bazar_frontend.load_balancer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.stereotype.Component;
@@ -13,9 +14,10 @@ public class RoundRobinLoadBalancer {
     private final AtomicInteger oIdx = new AtomicInteger(0);
 
     public RoundRobinLoadBalancer(LoadBalancerProps props) {
-        this.catalogUrls = props.getCatalog();
-        this.orderUrls   = props.getOrder();
+    this.catalogUrls = props.getCatalog() != null ? props.getCatalog() : new ArrayList<>();
+    this.orderUrls   = props.getOrder()   != null ? props.getOrder()   : new ArrayList<>();
     }
+
 
     public String nextCatalog() {
         return catalogUrls.get(Math.abs(cIdx.getAndIncrement()) % catalogUrls.size());
