@@ -1,10 +1,10 @@
 package com.bazar.bazar_catalog.controller;
 
-import java.lang.System.Logger;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,12 +25,19 @@ public class CatalogController {
 	
 	@Autowired
 	private RestTemplate rest;
+
+	@Autowired
+    private ReplicaController replicaController;
+
+	@Autowired
+    private ApplicationEventPublisher eventPublisher;
 	
 	@Value("${FRONTEND_CACHE_URL:http://localhost:8080}")
 	private String frontendCacheUrl;
 	
 	@GetMapping("/query/topic/{topic}")
 	public List<Book> queryByTopic(@PathVariable String topic) {
+		
 		List<Book> books = bookRepo.findByTopic(topic);
 		return books;
 
@@ -59,6 +66,7 @@ public class CatalogController {
 		
 		Book updatedBook = bookRepo.save(book);
 		invalidateCache(updatedBook.getId());
+        replicaController.propagateUpdate(bookUpdateRequest);
 		return updatedBook;
 	}
 	
@@ -67,6 +75,7 @@ public class CatalogController {
 		Book savedBook;
 		try {
 			savedBook = bookRepo.save(book);
+            eventPublisher.publishEvent(savedBook);
 		} catch (Exception ex) {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to save");
 		}

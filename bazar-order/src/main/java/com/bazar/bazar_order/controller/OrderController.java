@@ -1,5 +1,7 @@
 package com.bazar.bazar_order.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,8 @@ import com.bazar.bazar_order.model.Book;
 import com.bazar.bazar_order.model.BookUpdateRequest;
 import com.bazar.bazar_order.model.Order;
 import com.bazar.bazar_order.repository.OrderRepo;
+import com.bazar.bazar_order.load_balancer.RoundRobinLoadBalancer;
+import org.springframework.context.ApplicationEventPublisher;
 
 @RestController
 @RequestMapping("/order")
@@ -26,21 +30,25 @@ public class OrderController {
 	
 	@Autowired
 	private RestTemplate restTemplate;
-	
-	@Value("${CATALOG_SERVICE_URL:http://localhost:8081}")
-	private String catalogServiceUrl;
+
+	@Autowired
+    private RoundRobinLoadBalancer lb;
+
+	@Autowired
+    private ApplicationEventPublisher eventPublisher;
 	
 	@Value("${FRONTEND_CACHE_URL:http://localhost:8080}")
 	private String frontendCacheUrl;
 
-	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OrderController.class);
+	private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
 
 	@PostMapping("/purchase/id/{id}")
 	public ResponseEntity<String> purchase(@PathVariable Integer id) {
 		Book book;
+		logger.info("POST /order/purchase/id/{}", id);
 		
 		try {
-			book = restTemplate.getForObject(catalogServiceUrl + "/catalog/query/id/" + id,
+			book = restTemplate.getForObject(lb.getCatalogServer() + "/catalog/query/id/" + id,
 						Book.class);
 		} catch (HttpClientErrorException.NotFound ex) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -59,7 +67,7 @@ public class OrderController {
 				.quantity(book.getQuantity() - 1)
 				.build();
 		try {
-			restTemplate.put(catalogServiceUrl + "/catalog/update",
+			restTemplate.put(lb.getCatalogServer() + "/catalog/update",
 					bookUpdateRequest);
 		} catch (RestClientException ex) {
 			return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -71,6 +79,7 @@ public class OrderController {
 					.bookId(book.getId())
 					.build();
 			orderRepo.save(order);
+            eventPublisher.publishEvent(order);
 		} catch (Exception ex) {
 			
 			/*
@@ -84,7 +93,7 @@ public class OrderController {
 					.quantity(book.getQuantity()) //Returning the previous quantity value 
 					.build();
 			
-			restTemplate.put(catalogServiceUrl + "/catalog/update",
+			restTemplate.put(lb.getCatalogServer() + "/catalog/update",
 					updateRequest);
 			
 			invalidateCache(id);
@@ -98,16 +107,15 @@ public class OrderController {
 		logger.info("after invalidateCache id: {}", id);
 		
 		return ResponseEntity.status(HttpStatus.OK)
-				.body("Purchased: " + book.getName());
-		
+				.body("Purchase successful");
 	}
 	
 	private void invalidateCache(int bookId) {
 		try {
 			restTemplate.delete(frontendCacheUrl + "/cache/invalidate/" + bookId);
-			logger.info("Cache invalidated for book id: {}", bookId);
-		} catch (RestClientException ignore) {
-			
+		} catch (RestClientException ex) {
+			logger.warn("Failed to invalidate cache for book id {}: {}", bookId, ex.getMessage());
 		}
 	}
+
 }

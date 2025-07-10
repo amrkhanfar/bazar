@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,12 +27,6 @@ public class FrontendController {
 	@Autowired
 	RestTemplate restTemplate;
 	
-	@Value("${catalog.service.url}")
-	private String catalogServiceUrl;
-	
-	@Value("${order.service.url}")
-	private String orderServiceUrl;
-	
     @Autowired
     InMemoryCache cache;
     
@@ -49,7 +42,7 @@ public class FrontendController {
                .<ResponseEntity<?>>map(ResponseEntity::ok)
                .orElseGet(() -> {
 
-           String url = lb.nextCatalog() + "/catalog/query/topic/" + topic;
+           String url = lb.getCatalogServer() + "/catalog/query/topic/" + topic;
            ResponseEntity<Book[]> resp;
            try { resp = restTemplate.getForEntity(url, Book[].class); }
            catch (RestClientException ex) {
@@ -74,7 +67,7 @@ public class FrontendController {
                .<ResponseEntity<?>>map(ResponseEntity::ok)
                .orElseGet(() -> {
 
-           String url = lb.nextCatalog() + "/catalog/query/id/" + id;
+           String url = lb.getCatalogServer() + "/catalog/query/id/" + id;
            Book b;
            try { b = restTemplate.getForObject(url, Book.class); }
            catch (HttpClientErrorException.NotFound ex) {
@@ -98,9 +91,12 @@ public class FrontendController {
     @PostMapping("/purchase/{id}")
     public ResponseEntity<?> purchase(@PathVariable int id) {
 
-        String url = lb.nextOrder() + "/order/purchase/id/" + id;
+        String url = lb.getOrderServer() + "/order/purchase/id/" + id;
         String reply;
-        try { reply = restTemplate.postForObject(url, null, String.class); }
+        try {
+            reply = restTemplate.postForObject(url, null, String.class);
+            cache.invalidate("book:" + id); // Invalidate cache
+        }
         catch (HttpClientErrorException.NotFound ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No book with id " + id);
         } catch (RestClientException ex) {

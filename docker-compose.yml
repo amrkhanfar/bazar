@@ -1,33 +1,62 @@
 services:
+  # ───────────────── FRONT-END ─────────────────
   bazar-frontend-service:
     build: ./bazar-frontend
     ports:
-      - "8080:8080"
+      - "8080:8080"                # external API
     environment:
-      - CATALOG_SERVICE_URL=http://bazar-catalog-service:8081
-      - ORDER_SERVICE_URL=http://bazar-order-service:8082
+      # (these can stay; your hand-rolled LoadBalancer overrides them anyway)
+      - CATALOG_SERVICE_URL=http://bazar-catalog1-service:8081
+      - ORDER_SERVICE_URL=http://bazar-order1-service:8082
     depends_on:
-      - bazar-catalog-service
-      - bazar-order-service
+      - bazar-catalog1-service
+      - bazar-catalog2-service
+      - bazar-order1-service
+      - bazar-order2-service
 
-  bazar-catalog-service:
+  # ───────────────── CATALOG (2 replicas) ─────────────────
+  bazar-catalog1-service:          # first replica, port exposed to host
     build: ./bazar-catalog
     ports:
       - "8081:8081"
-    volumes:
-      - catalog-data:/data
+    volumes: [catalog1-data:/data]
+    environment:
+      - replica.id=bazar-catalog1-service
+  bazar-catalog2-service:          # second replica, INTERNAL only
+    build: ./bazar-catalog
+    expose:                        # avoids 8081 clash on the host
+      - "8081"
+    volumes: [catalog2-data:/data]
+    environment:
+      - replica.id=bazar-catalog2-service
 
-  bazar-order-service:
+  # ───────────────── ORDER (2 replicas) ──────────────────
+  bazar-order1-service:            # first order replica
     build: ./bazar-order
     ports:
       - "8082:8082"
-    volumes:
-      - order-data:/data
+    volumes: [order1-data:/data]
     environment:
-      - CATALOG_SERVICE_URL=http://bazar-catalog-service:8081
+      - CATALOG_SERVICE_URL=http://bazar-catalog1-service:8081
       - FRONTEND_CACHE_URL=http://bazar-frontend-service:8080
+      - replica.id=bazar-order1-service
     depends_on:
-      - bazar-catalog-service
+      - bazar-catalog1-service
+
+  bazar-order2-service:            # second order replica
+    build: ./bazar-order
+    expose:
+      - "8082"
+    volumes: [order2-data:/data]
+    environment:
+      - CATALOG_SERVICE_URL=http://bazar-catalog2-service:8081
+      - FRONTEND_CACHE_URL=http://bazar-frontend-service:8080
+      - replica.id=bazar-order2-service
+    depends_on:
+      - bazar-catalog2-service
+
 volumes:
-  catalog-data:
-  order-data:
+  catalog1-data:
+  catalog2-data:
+  order1-data:
+  order2-data:
